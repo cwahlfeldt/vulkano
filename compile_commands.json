@@ -1,0 +1,87 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-I./include",
+      "-DVK_USE_PLATFORM_XCB_KHR",
+      "-c",
+      "-o",
+      "build/vulkano.o",
+      "src/vulkano.c"
+    ],
+    "directory": "/var/home/waffles/code/vulkano",
+    "file": "/var/home/waffles/code/vulkano/src/vulkano.c",
+    "output": "/var/home/waffles/code/vulkano/build/vulkano.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-I./include",
+      "-DVK_USE_PLATFORM_XCB_KHR",
+      "-c",
+      "-o",
+      "build/vulkano_pipeline.o",
+      "src/vulkano_pipeline.c"
+    ],
+    "directory": "/var/home/waffles/code/vulkano",
+    "file": "/var/home/waffles/code/vulkano/src/vulkano_pipeline.c",
+    "output": "/var/home/waffles/code/vulkano/build/vulkano_pipeline.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-I./include",
+      "-DVK_USE_PLATFORM_XCB_KHR",
+      "-c",
+      "-o",
+      "build/vulkano_shader.o",
+      "src/vulkano_shader.c"
+    ],
+    "directory": "/var/home/waffles/code/vulkano",
+    "file": "/var/home/waffles/code/vulkano/src/vulkano_shader.c",
+    "output": "/var/home/waffles/code/vulkano/build/vulkano_shader.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-I./include",
+      "-DVK_USE_PLATFORM_XCB_KHR",
+      "-c",
+      "-o",
+      "build/vulkano_swapchain.o",
+      "src/vulkano_swapchain.c"
+    ],
+    "directory": "/var/home/waffles/code/vulkano",
+    "file": "/var/home/waffles/code/vulkano/src/vulkano_swapchain.c",
+    "output": "/var/home/waffles/code/vulkano/build/vulkano_swapchain.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-std=c11",
+      "-Wall",
+      "-Wextra",
+      "-I./include",
+      "-DVK_USE_PLATFORM_XCB_KHR",
+      "-c",
+      "-o",
+      "build/vulkano_vertex.o",
+      "src/vulkano_vertex.c"
+    ],
+    "directory": "/var/home/waffles/code/vulkano",
+    "file": "/var/home/waffles/code/vulkano/src/vulkano_vertex.c",
+    "output": "/var/home/waffles/code/vulkano/build/vulkano_vertex.o"
+  }
+]
