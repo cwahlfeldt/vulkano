@@ -1,6 +1,33 @@
 CC := gcc
-CFLAGS := -std=c11 -Wall -Wextra -I./include
+CFLAGS := -std=c11 -Wall -Wextra -I./include -Wno-unused-parameter -Wno-enum-conversion -Wno-enum-compare
 LDFLAGS := -lvulkan -lm
+
+SDL_DIR := lib/SDL
+SDL_INCLUDE := $(SDL_DIR)/include
+SDL_LIB := $(SDL_DIR)/build/libSDL3.a
+
+VK_DIR := lib/Vulkan-ValidationLayers
+# _INCLUDE := $(SDL_DIR)/include
+VK_LIB := $(VK_DIR)/build/layers/libVkLayer_utils.a
+
+CFLAGS += -I$(SDL_INCLUDE)
+LDFLAGS += $(SDL_LIB) -pthread $(VK_LIB)
+
+GLSLC := glslc
+SHADER_SRC := $(wildcard shaders/*.vert) $(wildcard shaders/*.frag)
+SHADER_SPV := $(SHADER_SRC:%=%.spv)
+
+SRC_DIR := src
+BUILD_DIR := build
+INCLUDE_DIR := include
+
+SRCS := $(wildcard $(SRC_DIR)/*.c)
+OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
+
+EXAMPLES_DIR := examples
+EXAMPLES_BUILD_DIR := $(BUILD_DIR)/examples
+EXAMPLE_SRCS := examples/spinning_cube.c
+EXAMPLE_BINS := $(EXAMPLES_BUILD_DIR)/spinning_cube
 
 # Platform-specific settings
 ifeq ($(OS),Windows_NT)
@@ -18,52 +45,23 @@ else
     endif
 endif
 
-GLSLC := glslc
-SHADER_SRC := $(wildcard shaders/*.vert) $(wildcard shaders/*.frag)
-SHADER_SPV := $(SHADER_SRC:%=%.spv)
-
-# Examples
-
-# EXAMPLES := $(wildcard $(EXAMPLES_DIR)/*)
-# EXAMPLE_BUILDS := $(EXAMPLES:%=%/bin)
-
-# Platform-specific settings
-ifeq ($(OS),Windows_NT)
-    CFLAGS += -DVK_USE_PLATFORM_WIN32_KHR
-    LDFLAGS += -lgdi32
-else
-    UNAME_S := $(shell uname -s)
-    ifeq ($(UNAME_S),Linux)
-        CFLAGS += -DVK_USE_PLATFORM_XCB_KHR
-        LDFLAGS += -lxcb
-    endif
-    ifeq ($(UNAME_S),Darwin)
-        CFLAGS += -DVK_USE_PLATFORM_METAL_EXT
-        LDFLAGS += -framework Metal -framework Foundation -framework QuartzCore
-    endif
-endif
-
-SRC_DIR := src
-BUILD_DIR := build
-INCLUDE_DIR := include
-
-SRCS := $(wildcard $(SRC_DIR)/*.c)
-OBJS := $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
-
-EXAMPLES_DIR := examples
-# EXAMPLE_SRCS := $(wildcard $(EXAMPLES_DIR)/*.c)
-EXAMPLE_SRCS := $(wildcard $(EXAMPLES_DIR)/*.c)
-EXAMPLE_BINS := $(EXAMPLE_SRCS:$(EXAMPLES_DIR)/%.c=$(BUILD_DIR)/$(EXAMPLES_DIR)/%)
-
 .PHONY: all clean shaders examples
 
 all: shaders $(BUILD_DIR)/libvulkano.a examples
 
-examples: $(EXAMPLE_BINS)
+examples: $(BUILD_DIR)/libvulkano.a
+	@mkdir -p $(EXAMPLES_BUILD_DIR)
+	$(CC) $(CFLAGS) examples/spinning_cube.c -o $(EXAMPLES_BUILD_DIR)/spinning_cube -L$(BUILD_DIR) -lvulkano $(LDFLAGS)
+	@echo "EXAMPLES_DIR: $(EXAMPLES_DIR)"
+	@echo "EXAMPLE_SRCS: $(EXAMPLE_SRCS)"
+	@echo "EXAMPLE_BINS: $(EXAMPLE_BINS)"
+	@echo "EXAMPLES_BUILD_DIR: $(EXAMPLES_BUILD_DIR)"
 
-# Rule to compile each example source file into an executable
-$(BUILD_DIR)/$(EXAMPLES_DIR)/%: $(EXAMPLES_DIR)/%.c $(BUILD_DIR)/libvulkano.a
-	@mkdir -p $(dir $@)
+$(EXAMPLES_BUILD_DIR):
+	@mkdir -p $(EXAMPLES_BUILD_DIR)
+
+$(EXAMPLES_BUILD_DIR)/%: $(EXAMPLES_DIR)/%.c
+	@mkdir -p $(EXAMPLES_BUILD_DIR)
 	$(CC) $(CFLAGS) $< -o $@ -L$(BUILD_DIR) -lvulkano $(LDFLAGS)
 
 shaders: $(SHADER_SPV)

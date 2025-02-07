@@ -1,124 +1,131 @@
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_vulkan.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <vulkano.h>
 #include <vulkano_renderer.h>
 
-#ifdef VK_USE_PLATFORM_XCB_KHR
-#include <string.h>
-#include <xcb/xcb.h>
+#ifndef VK_EXT_DEBUG_REPORT_EXTENSION_NAME
+#define VK_EXT_DEBUG_REPORT_EXTENSION_NAME "VK_EXT_debug_report"
 #endif
 
 typedef struct {
   VulkanoContext context;
   VulkanoRenderer renderer;
-
-#ifdef VK_USE_PLATFORM_XCB_KHR
-  xcb_connection_t *connection;
-  xcb_window_t window;
-  xcb_screen_t *screen;
-#endif
-
+  SDL_Window *window;
   int width;
   int height;
   bool should_close;
 } App;
 
-static void create_window(App *app) {
-#ifdef VK_USE_PLATFORM_XCB_KHR
-  app->connection = xcb_connect(NULL, NULL);
-  if (xcb_connection_has_error(app->connection)) {
-    printf("Failed to connect to X server\n");
-    exit(1);
+static bool create_window(App *app) {
+  if (!SDL_Init(SDL_INIT_VIDEO)) {
+    printf("SDL_Init Error: %s\n", SDL_GetError());
+    return false;
   }
 
-  // Get the first screen
-  app->screen = xcb_setup_roots_iterator(xcb_get_setup(app->connection)).data;
-  app->window = xcb_generate_id(app->connection);
+  app->window =
+      SDL_CreateWindow("Vulkano Spinning Cube", app->width, app->height,
+                       SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
-  uint32_t value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-  uint32_t value_list[2];
-  value_list[0] = app->screen->black_pixel;
-  value_list[1] = XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_EXPOSURE |
-                  XCB_EVENT_MASK_STRUCTURE_NOTIFY;
+  if (!app->window) {
+    printf("Failed to create window: %s\n", SDL_GetError());
+    return false;
+  }
 
-  xcb_create_window(app->connection, XCB_COPY_FROM_PARENT, app->window,
-                    app->screen->root, 0, 0, app->width, app->height, 0,
-                    XCB_WINDOW_CLASS_INPUT_OUTPUT, app->screen->root_visual,
-                    value_mask, value_list);
-
-  // Set window title
-  xcb_change_property(app->connection, XCB_PROP_MODE_REPLACE, app->window,
-                      XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8,
-                      strlen("Vulkano Spinning Cube"), "Vulkano Spinning Cube");
-
-  xcb_map_window(app->connection, app->window);
-  xcb_flush(app->connection);
-#endif
+  return true;
 }
 
-static void create_surface(App *app) {
-#ifdef VK_USE_PLATFORM_XCB_KHR
-  VkXcbSurfaceCreateInfoKHR create_info = {
-      .sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
-      .connection = app->connection,
-      .window = app->window};
+static bool create_surface(App *app) {
 
-  if (vkCreateXcbSurfaceKHR(app->context.instance, &create_info, NULL,
-                            &app->context.surface) != VK_SUCCESS) {
-    printf("Failed to create window surface\n");
-    exit(1);
+  // // Now we can make the Vulkan instance
+  // VkInstanceCreateInfo create_info = {};
+  // create_info.enabledExtensionCount = count_extensions;
+  // create_info.ppEnabledExtensionNames = extensions;
+
+  // VkInstance instance;
+  // VkResult result = vkCreateInstance(&create_info, NULL, &instance);
+
+  if (!SDL_Vulkan_CreateSurface(app->window, app->context.instance, NULL,
+                                &app->context.surface)) {
+    printf("Failed to create Vulkan surface: %s\n", SDL_GetError());
+    return false;
   }
-#endif
+  return true;
 }
 
 static void handle_events(App *app) {
-#ifdef VK_USE_PLATFORM_XCB_KHR
-  xcb_generic_event_t *event;
-  while ((event = xcb_poll_for_event(app->connection))) {
-    switch (event->response_type & 0x7f) {
-    case XCB_CLIENT_MESSAGE:
+  SDL_Event event;
+  while (SDL_PollEvent(&event)) {
+    switch (event.type) {
+    case SDL_EVENT_QUIT:
       app->should_close = true;
       break;
-    case XCB_KEY_RELEASE:
-      app->should_close = true;
-      break;
-    case XCB_DESTROY_NOTIFY:
-      app->should_close = true;
-      break;
-    case XCB_CONFIGURE_NOTIFY: {
-      xcb_configure_notify_event_t *cfg = (xcb_configure_notify_event_t *)event;
-      if (cfg->width != app->width || cfg->height != app->height) {
-        app->width = cfg->width;
-        app->height = cfg->height;
-        // Handle resize if needed
+
+    case SDL_EVENT_KEY_DOWN:
+      if (event.key.key == SDLK_ESCAPE) {
+        app->should_close = true;
       }
       break;
+
+    case SDL_EVENT_WINDOW_RESIZED:
+      app->width = event.window.data1;
+      app->height = event.window.data2;
+      // Handle resize if needed
+      break;
     }
-    }
-    free(event);
   }
-#endif
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   App app = {.width = 800, .height = 600, .should_close = false};
 
   // Create window
-  create_window(&app);
-
-  // Initialize Vulkan
-  if (vulkano_init(&app.context) != VULKANO_SUCCESS) {
-    printf("Failed to initialize Vulkan\n");
+  if (!create_window(&app)) {
     return 1;
   }
 
+  Uint32 count_instance_extensions;
+  const char *const *instance_extensions =
+      SDL_Vulkan_GetInstanceExtensions(&count_instance_extensions);
+
+  if (instance_extensions == NULL) {
+    printf("instance_extensions is null: %s\n", SDL_GetError());
+    return false;
+  }
+
+  int count_extensions = count_instance_extensions + 1;
+  const char **extensions = SDL_malloc(count_extensions * sizeof(const char *));
+  extensions[0] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
+  SDL_memcpy(&extensions[1], instance_extensions,
+             count_instance_extensions * sizeof(const char *));
+
+  // Initialize Vulkan
+  if (vulkano_init(&app.context, count_extensions, extensions) !=
+      VULKANO_SUCCESS) {
+    printf("Failed to initialize Vulkan\n");
+    SDL_DestroyWindow(app.window);
+    SDL_Quit();
+    return 1;
+  }
+  SDL_free(extensions);
+
   // Create surface
-  create_surface(&app);
+  if (!create_surface(&app)) {
+    vulkano_cleanup(&app.context);
+    SDL_DestroyWindow(app.window);
+    SDL_Quit();
+    return 1;
+  }
 
   // Create swapchain and initialize renderer
   if (vulkano_renderer_init(&app.context, &app.renderer) != VULKANO_SUCCESS) {
     printf("Failed to initialize renderer\n");
+    vkDestroySurfaceKHR(app.context.instance, app.context.surface, NULL);
+    vulkano_cleanup(&app.context);
+    SDL_DestroyWindow(app.window);
+    SDL_Quit();
     return 1;
   }
 
@@ -141,11 +148,8 @@ int main() {
   vulkano_renderer_cleanup(&app.renderer);
   vkDestroySurfaceKHR(app.context.instance, app.context.surface, NULL);
   vulkano_cleanup(&app.context);
-
-#ifdef VK_USE_PLATFORM_XCB_KHR
-  xcb_destroy_window(app.connection, app.window);
-  xcb_disconnect(app.connection);
-#endif
+  SDL_DestroyWindow(app.window);
+  SDL_Quit();
 
   return 0;
 }

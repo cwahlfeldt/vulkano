@@ -16,7 +16,6 @@
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <android/native_window.h>
 #else // Linux
-#define VK_USE_PLATFORM_XCB_KHR
 #include <xcb/xcb.h>
 #endif
 
@@ -41,7 +40,8 @@ typedef struct VulkanoContext {
 } VulkanoContext;
 
 // Initialization
-VulkanoResult vulkano_init(VulkanoContext *context);
+VulkanoResult vulkano_init(VulkanoContext *context, int count_extensions,
+                           const char **extensions);
 
 // Cleanup
 void vulkano_cleanup(VulkanoContext *context);

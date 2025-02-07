@@ -3,9 +3,19 @@
 #include <string.h>
 #include <vulkan/vulkan_core.h>
 
+#ifndef VK_EXT_DEBUG_REPORT_EXTENSION_NAME
+#define VK_EXT_DEBUG_REPORT_EXTENSION_NAME "VK_KHR_xlib_surface"
+#endif
+
 #define VULKANO_MAX_PHYSICAL_DEVICES 16
 
-static VkResult create_vulkan_instance(VulkanoContext *context) {
+static VkResult create_vulkan_instance(VulkanoContext *context,
+                                       int count_extensions,
+                                       const char **extensions) {
+  if (!context || !count_extensions || !extensions) {
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+  }
+
   VkApplicationInfo app_info = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
                                 .pNext = NULL,
                                 .pApplicationName = "Vulkano Renderer",
@@ -21,13 +31,14 @@ static VkResult create_vulkan_instance(VulkanoContext *context) {
       .pApplicationInfo = &app_info,
       .enabledLayerCount = 0,
       .ppEnabledLayerNames = NULL,
-      .enabledExtensionCount = 0,
-      .ppEnabledExtensionNames = NULL};
+      .enabledExtensionCount = count_extensions,
+      .ppEnabledExtensionNames = extensions};
 
   return vkCreateInstance(&create_info, NULL, &context->instance);
 }
 
-VulkanoResult vulkano_init(VulkanoContext *context) {
+VulkanoResult vulkano_init(VulkanoContext *context, int count_extensions,
+                           const char **extensions) {
   if (!context) {
     return VULKANO_ERROR_INIT_FAILED;
   }
@@ -36,7 +47,8 @@ VulkanoResult vulkano_init(VulkanoContext *context) {
   memset(context, 0, sizeof(VulkanoContext));
 
   // Create Vulkan instance
-  VkResult result = create_vulkan_instance(context);
+  VkResult result =
+      create_vulkan_instance(context, count_extensions, extensions);
   if (result != VK_SUCCESS) {
     return VULKANO_ERROR_VULKAN_UNAVAILABLE;
   }
