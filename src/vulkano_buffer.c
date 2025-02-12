@@ -97,7 +97,7 @@ VulkanoResult vulkano_create_vertex_buffer(
     memcpy(data, vertices, buffer_size);
     vkUnmapMemory(context->device, staging_buffer_memory);
 
-    // Create vertex buffer
+    // // Create vertex buffer
     if (vulkano_create_buffer(
             context,
             buffer_size,
@@ -111,7 +111,7 @@ VulkanoResult vulkano_create_vertex_buffer(
         return VULKANO_ERROR_INIT_FAILED;
     }
 
-    // Copy data from staging buffer to vertex buffer
+    // // Copy data from staging buffer to vertex buffer
     VkCommandBuffer command_buffer;
     VkCommandBufferAllocateInfo alloc_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -120,6 +120,8 @@ VulkanoResult vulkano_create_vertex_buffer(
         .commandBufferCount = 1
     };
 
+    // BUSTED
+    // ////////////////////////////////////////////////////////////////////////
     vkAllocateCommandBuffers(context->device, &alloc_info, &command_buffer);
 
     VkCommandBufferBeginInfo begin_info = {
@@ -147,7 +149,8 @@ VulkanoResult vulkano_create_vertex_buffer(
     vkQueueSubmit(context->graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
     vkQueueWaitIdle(context->graphics_queue);
 
-    vkFreeCommandBuffers(context->device, context->command_pool, 1, &command_buffer);
+    vkFreeCommandBuffers(context->device, context->command_pool, 1,
+                         &command_buffer);
     vkDestroyBuffer(context->device, staging_buffer, NULL);
     vkFreeMemory(context->device, staging_buffer_memory, NULL);
 

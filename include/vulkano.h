@@ -1,6 +1,7 @@
 #ifndef VULKANO_H
 #define VULKANO_H
 
+#include "SDL3/SDL_vulkan.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <vulkan/vulkan.h>
@@ -40,8 +41,8 @@ typedef struct VulkanoContext {
 } VulkanoContext;
 
 // Initialization
-VulkanoResult vulkano_init(VulkanoContext *context, int count_extensions,
-                           const char **extensions);
+VulkanoResult vulkano_init(VulkanoContext *context, const char **extensions,
+                           uint32_t extension_count);
 
 // Cleanup
 void vulkano_cleanup(VulkanoContext *context);

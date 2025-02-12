@@ -1,14 +1,10 @@
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_init.h>
 #include <SDL3/SDL_vulkan.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <vulkano.h>
 #include <vulkano_renderer.h>
-
-#ifndef VK_EXT_DEBUG_REPORT_EXTENSION_NAME
-#define VK_EXT_DEBUG_REPORT_EXTENSION_NAME "VK_EXT_debug_report"
-#endif
 
 typedef struct {
   VulkanoContext context;
@@ -19,15 +15,51 @@ typedef struct {
   bool should_close;
 } App;
 
-static bool create_window(App *app) {
-  if (!SDL_Init(SDL_INIT_VIDEO)) {
-    printf("SDL_Init Error: %s\n", SDL_GetError());
+static bool init_vulkan(App *app) {
+  // Add required extensions for Wayland/XCB
+  const char *extensions[] = {
+      VK_KHR_SURFACE_EXTENSION_NAME,
+#ifdef VK_USE_PLATFORM_XCB_KHR
+      VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+      VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
+#endif
+      VK_EXT_DEBUG_REPORT_EXTENSION_NAME // Add debug extension
+  };
+  uint32_t extension_count = sizeof(extensions) / sizeof(extensions[0]);
+
+  // Get SDL's required extensions count
+  uint32_t sdl_extension_count = 0;
+  if (!SDL_Vulkan_GetInstanceExtensions(&sdl_extension_count)) {
+    printf("Failed to get SDL extension count: %s\n", SDL_GetError());
     return false;
   }
 
-  app->window =
-      SDL_CreateWindow("Vulkano Spinning Cube", app->width, app->height,
-                       SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+  printf("Found %u platform extensions and %u SDL extensions\n",
+         extension_count, sdl_extension_count);
+
+  // Initialize Vulkan with our extensions
+  if (vulkano_init(&app->context, extensions, extension_count) !=
+      VULKANO_SUCCESS) {
+    printf("Failed to initialize Vulkan\n");
+    return false;
+  }
+
+  return true;
+}
+
+static bool create_window(App *app) {
+  // Set hints before creating window to minimize allocations
+  SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
+  SDL_SetHint(SDL_HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR, "0");
+  SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
+
+  // Only initialize video subsystem
+  SDL_InitSubSystem(SDL_INIT_VIDEO);
+
+  app->window = SDL_CreateWindow(
+      "Vulkano Spinning Cube", app->width, app->height,
+      SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MINIMIZED);
 
   if (!app->window) {
     printf("Failed to create window: %s\n", SDL_GetError());
@@ -38,15 +70,6 @@ static bool create_window(App *app) {
 }
 
 static bool create_surface(App *app) {
-
-  // // Now we can make the Vulkan instance
-  // VkInstanceCreateInfo create_info = {};
-  // create_info.enabledExtensionCount = count_extensions;
-  // create_info.ppEnabledExtensionNames = extensions;
-
-  // VkInstance instance;
-  // VkResult result = vkCreateInstance(&create_info, NULL, &instance);
-
   if (!SDL_Vulkan_CreateSurface(app->window, app->context.instance, NULL,
                                 &app->context.surface)) {
     printf("Failed to create Vulkan surface: %s\n", SDL_GetError());
@@ -72,44 +95,49 @@ static void handle_events(App *app) {
     case SDL_EVENT_WINDOW_RESIZED:
       app->width = event.window.data1;
       app->height = event.window.data2;
-      // Handle resize if needed
+      // TODO: Handle resize
       break;
     }
   }
 }
 
-int main(int argc, char *argv[]) {
-  App app = {.width = 800, .height = 600, .should_close = false};
+static void cleanup_sdl(void) { SDL_Quit(); }
 
-  // Create window
-  if (!create_window(&app)) {
+int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
+
+  atexit(cleanup_sdl);
+
+  App app = {.width = 800,
+             .height = 600,
+             .should_close = false,
+             .window = NULL,
+             .context = {0}};
+
+  // Initialize SDL with only video subsystem
+  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    printf("SDL_Init Error: %s\n", SDL_GetError());
     return 1;
   }
 
-  Uint32 count_instance_extensions;
-  const char *const *instance_extensions =
-      SDL_Vulkan_GetInstanceExtensions(&count_instance_extensions);
+  // Disable unnecessary SDL subsystems
+  // SDL_EventState(SDL_EVENT_TEXT_INPUT, SDL_DISABLE);
+  // SDL_EventState(SDL_EVENT_TEXT_EDITING, SDL_DISABLE);
+  // SDL_EventState(SDL_EVENT_TEXT_EDITING_EXT, SDL_DISABLE);
 
-  if (instance_extensions == NULL) {
-    printf("instance_extensions is null: %s\n", SDL_GetError());
-    return false;
+  // Create window
+  if (!create_window(&app)) {
+    SDL_Quit();
+    return 1;
   }
 
-  int count_extensions = count_instance_extensions + 1;
-  const char **extensions = SDL_malloc(count_extensions * sizeof(const char *));
-  extensions[0] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
-  SDL_memcpy(&extensions[1], instance_extensions,
-             count_instance_extensions * sizeof(const char *));
-
   // Initialize Vulkan
-  if (vulkano_init(&app.context, count_extensions, extensions) !=
-      VULKANO_SUCCESS) {
-    printf("Failed to initialize Vulkan\n");
+  if (!init_vulkan(&app)) {
     SDL_DestroyWindow(app.window);
     SDL_Quit();
     return 1;
   }
-  SDL_free(extensions);
 
   // Create surface
   if (!create_surface(&app)) {
@@ -119,9 +147,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  // Create swapchain and initialize renderer
+  // Initialize renderer
   if (vulkano_renderer_init(&app.context, &app.renderer) != VULKANO_SUCCESS) {
-    printf("Failed to initialize renderer\n");
     vkDestroySurfaceKHR(app.context.instance, app.context.surface, NULL);
     vulkano_cleanup(&app.context);
     SDL_DestroyWindow(app.window);
@@ -136,14 +163,14 @@ int main(int argc, char *argv[]) {
     VulkanoResult result = vulkano_renderer_draw_frame(&app.renderer);
     if (result != VULKANO_SUCCESS) {
       if (result == VULKANO_ERROR_SWAPCHAIN_OUTDATED) {
-        // Handle resize
+        // TODO: Handle resize
         continue;
       }
       break;
     }
   }
 
-  // Cleanup
+  // Cleanup everything
   vulkano_renderer_wait_idle(&app.renderer);
   vulkano_renderer_cleanup(&app.renderer);
   vkDestroySurfaceKHR(app.context.instance, app.context.surface, NULL);

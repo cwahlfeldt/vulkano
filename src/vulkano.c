@@ -3,21 +3,12 @@
 #include <string.h>
 #include <vulkan/vulkan_core.h>
 
-#ifndef VK_EXT_DEBUG_REPORT_EXTENSION_NAME
-#define VK_EXT_DEBUG_REPORT_EXTENSION_NAME "VK_KHR_xlib_surface"
-#endif
-
 #define VULKANO_MAX_PHYSICAL_DEVICES 16
 
 static VkResult create_vulkan_instance(VulkanoContext *context,
-                                       int count_extensions,
-                                       const char **extensions) {
-  if (!context || !count_extensions || !extensions) {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-
+                                       const char **extensions,
+                                       uint32_t extension_count) {
   VkApplicationInfo app_info = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-                                .pNext = NULL,
                                 .pApplicationName = "Vulkano Renderer",
                                 .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
                                 .pEngineName = "Vulkano",
@@ -26,19 +17,16 @@ static VkResult create_vulkan_instance(VulkanoContext *context,
 
   VkInstanceCreateInfo create_info = {
       .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-      .pNext = NULL,
-      .flags = 0,
       .pApplicationInfo = &app_info,
       .enabledLayerCount = 0,
       .ppEnabledLayerNames = NULL,
-      .enabledExtensionCount = count_extensions,
+      .enabledExtensionCount = extension_count,
       .ppEnabledExtensionNames = extensions};
 
   return vkCreateInstance(&create_info, NULL, &context->instance);
 }
-
-VulkanoResult vulkano_init(VulkanoContext *context, int count_extensions,
-                           const char **extensions) {
+VulkanoResult vulkano_init(VulkanoContext *context, const char **extensions,
+                           uint32_t extension_count) {
   if (!context) {
     return VULKANO_ERROR_INIT_FAILED;
   }
@@ -46,9 +34,9 @@ VulkanoResult vulkano_init(VulkanoContext *context, int count_extensions,
   // Clear context
   memset(context, 0, sizeof(VulkanoContext));
 
-  // Create Vulkan instance
+  // Create Vulkan instance with extensions
   VkResult result =
-      create_vulkan_instance(context, count_extensions, extensions);
+      create_vulkan_instance(context, extensions, extension_count);
   if (result != VK_SUCCESS) {
     return VULKANO_ERROR_VULKAN_UNAVAILABLE;
   }

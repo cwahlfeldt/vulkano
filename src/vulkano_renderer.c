@@ -5,6 +5,7 @@
 #include "vulkano_cube.h"
 #include "vulkano_math.h"
 #include "vulkano_vertex.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,6 +14,8 @@ VulkanoResult vulkano_renderer_init(VulkanoContext *context,
   renderer->context = context;
   renderer->current_frame = 0;
   renderer->rotation = 0.0f;
+
+  printf("fuck");
 
   // Create vertex buffer
   if (vulkano_create_vertex_buffer(

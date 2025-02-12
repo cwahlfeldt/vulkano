@@ -2,16 +2,19 @@ CC := gcc
 CFLAGS := -std=c11 -Wall -Wextra -I./include -Wno-unused-parameter -Wno-enum-conversion -Wno-enum-compare
 LDFLAGS := -lvulkan -lm
 
+# CFLAGS += -fsanitize=address -g
+# LDFLAGS += -fsanitize=address
+
 SDL_DIR := lib/SDL
 SDL_INCLUDE := $(SDL_DIR)/include
 SDL_LIB := $(SDL_DIR)/build/libSDL3.a
 
-VK_DIR := lib/Vulkan-ValidationLayers
-# _INCLUDE := $(SDL_DIR)/include
-VK_LIB := $(VK_DIR)/build/layers/libVkLayer_utils.a
+# VK_DIR := lib/Vulkan-ValidationLayers
+# # _INCLUDE := $(SDL_DIR)/include
+# VK_LIB := $(VK_DIR)/build/layers/libVkLayer_utils.a
 
-CFLAGS += -I$(SDL_INCLUDE)
-LDFLAGS += $(SDL_LIB) -pthread $(VK_LIB)
+CFLAGS += -I$(SDL_INCLUDE) -Ilib/VulkanMemoryAllocator/include
+LDFLAGS += $(SDL_LIB) -pthread
 
 GLSLC := glslc
 SHADER_SRC := $(wildcard shaders/*.vert) $(wildcard shaders/*.frag)
@@ -36,8 +39,13 @@ ifeq ($(OS),Windows_NT)
 else
     UNAME_S := $(shell uname -s)
     ifeq ($(UNAME_S),Linux)
-        CFLAGS += -DVK_USE_PLATFORM_XCB_KHR
-        LDFLAGS += -lxcb -lX11 -lX11-xcb
+		ifneq ($(shell pkg-config --exists wayland-client && echo yes),)
+			CFLAGS += -DVK_USE_PLATFORM_WAYLAND_KHR
+			LDFLAGS += -lwayland-client
+		else
+			CFLAGS += -DVK_USE_PLATFORM_XCB_KHR
+			LDFLAGS += -lxcb -lX11 -lX11-xcb
+    	endif
     endif
     ifeq ($(UNAME_S),Darwin)
         CFLAGS += -DVK_USE_PLATFORM_METAL_EXT

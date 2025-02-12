@@ -1,0 +1,9 @@
+{
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/var/home/waffles/code/vulkano/build/examples",
+            "binaryPath": "/var/home/waffles/code/vulkano/build/examples/spinning_cube",
+            "binaryArgs": []
+        }
+    ]
+}
